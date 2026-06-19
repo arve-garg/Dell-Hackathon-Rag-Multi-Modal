@@ -58,3 +58,15 @@ def index_graph_nodes(doc_graph):
         client.upsert(collection_name=collection_name, points=points)
         
     return len(points)
+
+def search_similar_nodes(query, limit=5):
+
+    query_vector = encoder.encode(query).tolist()
+
+    results = client.query_points(
+        collection_name=collection_name,
+        query=query_vector,
+        limit=limit
+    )
+
+    return results

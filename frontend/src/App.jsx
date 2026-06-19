@@ -1,8 +1,14 @@
+<<<<<<< HEAD
 import { useState } from 'react';
+=======
+import { useState,useEffect,useRef } from 'react';
+import UploadForm from './components/UploadForm';
+>>>>>>> dc859da567c64e28f84fe9440a8767500577c11e
 
 export default function App() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
+<<<<<<< HEAD
   const [analysisData, setAnalysisData] = useState(null);
   
   // Quiz State
@@ -18,6 +24,25 @@ export default function App() {
   // --- API CALLS ---
   const handleUploadAndAnalyze = async () => {
     if (!file) return alert("Please select a file first!");
+=======
+  const messagesEndRef = useRef(null);
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
+  useEffect(() => {
+  messagesEndRef.current?.scrollIntoView({
+    behavior: "smooth",
+  });
+}, [chatHistory, loading]);
+
+  const handleTransmit = async () => {
+    if( query.trim() === '') return;
+    
+    const userMessage = query;
+    setChatHistory((prev) => [...prev, { sender: 'user', text: userMessage }]);
+    setQuery('');
+>>>>>>> dc859da567c64e28f84fe9440a8767500577c11e
     setLoading(true);
 
     const formData = new FormData();
@@ -29,11 +54,26 @@ export default function App() {
         method: "POST",
         body: formData,
       });
+<<<<<<< HEAD
 
       // 2. Fetch the Analysis (Summary + Quiz)
       const res = await fetch("http://localhost:8000/analyze");
       const data = await res.json();
       setAnalysisData(data);
+=======
+      
+      const data = await response.json();
+      
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          sender: 'system',
+          text: data.answer || 'Error interpreting return stream.',
+          sources: data.sources || [],
+          relationships: data.relationships || []
+        }
+      ]);
+>>>>>>> dc859da567c64e28f84fe9440a8767500577c11e
     } catch (error) {
       console.error("Pipeline Error:", error);
       alert("Failed to connect to backend. Is FastAPI running?");
@@ -68,10 +108,101 @@ export default function App() {
           <p className="text-gray-400 mt-2">Dell AI Hackathon | Real-time vector analytics</p>
         </header>
 
+<<<<<<< HEAD
         {/* SECTION 1: INGESTION */}
         <section className="bg-gray-800 p-6 rounded-lg border border-gray-700">
           <h2 className="text-2xl font-semibold mb-4">1. Document Ingestion</h2>
           <div className="flex gap-4 items-center">
+=======
+      {/* Main Grid Layout */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* Left Column: Upload & System Status */}
+        <div className="lg:col-span-5 space-y-8">
+          <div className={`p-6 border-l-4 rounded-r-lg shadow-2xl transition-all duration-500 hover:scale-[1.01] ${
+            theme === 'dark' ? 'bg-zinc-900 border-cyan-500' : 'bg-white border-blue-600'
+          }`}>
+            <h2 className="text-3xl font-black mb-2 uppercase tracking-wide">Data Intake</h2>
+            <p className={`text-sm mb-6 ${theme === 'dark' ? 'text-zinc-400' : 'text-slate-500'}`}>
+              Initialize Graph-RAG by securely dropping enterprise .pdf or .docx files into the uplink bucket.
+            </p>
+            <UploadForm theme={theme} />
+          </div>
+
+          <div className={`p-6 border-l-4 rounded-r-lg shadow-2xl ${
+            theme === 'dark' ? 'bg-zinc-900 border-purple-500' : 'bg-white border-purple-600'
+          }`}>
+            <h3 className="text-xl font-bold uppercase tracking-widest mb-4">System Telemetry</h3>
+            <div className="space-y-4 font-mono text-sm">
+              <div className="flex justify-between border-b border-dashed border-zinc-700 pb-2">
+                <span>Vector Engine</span>
+                <span className="text-emerald-500 animate-pulse">ONLINE</span>
+              </div>
+              <div className="flex justify-between border-b border-dashed border-zinc-700 pb-2">
+                <span>Graph Traverser</span>
+                <span className="text-emerald-500 animate-pulse">ONLINE</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Active Chat Interface */}
+        <div className={`lg:col-span-7 p-6 border-l-4 rounded-r-lg shadow-2xl flex flex-col h-[600px] ${
+          theme === 'dark' ? 'bg-zinc-900 border-emerald-500' : 'bg-white border-emerald-600'
+        }`}>
+          <h2 className="text-3xl font-black mb-2 uppercase tracking-wide">Document Terminal</h2>
+          <p className={`text-sm mb-4 border-b pb-4 ${theme === 'dark' ? 'text-zinc-400 border-zinc-800' : 'text-slate-500 border-slate-200'}`}>
+            Execute natural language queries against the ingested intelligence network.
+          </p>
+
+          {/* Chat Logs Window */}
+          <div className={`flex-1 overflow-y-auto rounded p-4 space-y-4 border ${
+            theme === 'dark' ? 'bg-zinc-950 border-zinc-800' : 'bg-slate-50 border-slate-200'
+          }`}>
+            {chatHistory.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-center">
+                <p className={`font-mono text-sm animate-pulse ${theme === 'dark' ? 'text-zinc-600' : 'text-slate-400'}`}>
+                  [ System idle. Upload a document and stream your first query. ]
+                </p>
+              </div>
+            ) : (
+              chatHistory.map((msg, index) => (
+                <div key={index} className={`p-3 rounded font-mono text-sm border ${
+                  msg.sender === 'user'
+                    ? theme === 'dark' ? 'bg-zinc-900 border-cyan-900 text-cyan-400 self-end' : 'bg-blue-50 border-blue-200 text-blue-700'
+                    : theme === 'dark' ? 'bg-zinc-950 border-zinc-800 text-zinc-100' : 'bg-white border-slate-200 text-slate-800'
+                }`}>
+                  <span className="font-black block text-xs uppercase mb-1 tracking-wider opacity-60">
+                    {msg.sender === 'user' ? '// User_Query' : '// System_Response'}
+                  </span>
+                  <p className="whitespace-pre-wrap">{msg.text}</p>
+                  {msg.sources && msg.sources.length > 0 && (
+                  <div className="mt-4 border-t border-zinc-700 pt-3">
+                    <div className="font-bold text-xs mb-2 text-emerald-400">
+                      EVIDENCE SOURCES
+                    </div>
+
+                    {msg.sources.map((source, idx) => (
+                      <div key={idx} className="text-xs opacity-80">
+                        📄 Page {source.page} — {source.title}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                </div>
+              ))
+            )}
+            {loading && (
+              <div className="p-3 font-mono text-sm text-yellow-500 animate-pulse">
+                [ Computing embeddings and traversing database nodes... ]
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Chat Inputs */}
+          <div className="mt-4 flex gap-4">
+>>>>>>> dc859da567c64e28f84fe9440a8767500577c11e
             <input 
               type="file" 
               onChange={(e) => setFile(e.target.files[0])} 

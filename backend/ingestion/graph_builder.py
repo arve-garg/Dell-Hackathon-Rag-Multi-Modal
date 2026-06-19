@@ -11,6 +11,7 @@ def build_document_graph(elements):
     if not elements:
         return G
 
+    current_heading = None
     # Step 1: Add all elements as nodes
     for i, el in enumerate(elements):
         node_id = el["element_id"]
@@ -22,6 +23,19 @@ def build_document_graph(elements):
             page=el.get("page", 0),
             content=el.get("content", "")
         )
+        element_type = el.get("type", "paragraph")
+
+        # Track latest heading
+        if element_type == "heading":
+            current_heading = node_id
+
+        # Link content to heading
+        elif current_heading:
+            G.add_edge(
+                current_heading,
+                node_id,
+                relation="BELONGS_TO_SECTION"
+            )
         
         # Step 2: Create Relationships (Edges)
         # Heuristic 1: Sequential Flow (Paragraph A is followed by Paragraph B)

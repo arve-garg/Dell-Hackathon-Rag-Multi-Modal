@@ -12,9 +12,31 @@ def parse_pdf(file_path):
             text = block[4].strip()
             block_type = block[6] 
             if text and block_type == 0:
+
+                element_type = "paragraph"
+
+                # Heading Detection
+                if len(text) < 100:
+                    if text.isupper():
+                        element_type = "heading"
+                    elif text.istitle():
+                        element_type = "heading"
+
+                # Table Detection
+                lines = text.split("\n")
+
+                if len(lines) >= 3:
+                    numeric_count = sum(
+                        any(char.isdigit() for char in line)
+                        for line in lines
+                    )
+
+                    if numeric_count >= len(lines) // 2:
+                        element_type = "table"
+
                 structured_elements.append({
                     "element_id": f"pdf_p{page_num + 1}_b{block[5]}",
-                    "type": "paragraph", 
+                    "type": element_type,
                     "page": page_num + 1,
                     "content": text
                 })
@@ -33,6 +55,7 @@ def parse_docx(file_path):
                 "page": 1, # DOCX doesn't have rigid pages, defaulting to 1
                 "content": text
             })
+    doc.close()
     return structured_elements
 
 def parse_document(file_path):
