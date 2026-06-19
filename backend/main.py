@@ -4,6 +4,8 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import google.generativeai as genai
+from dotenv import load_dotenv
+load_dotenv()
 
 # Ingestion Modules
 from ingestion.parser import parse_document  
@@ -15,12 +17,14 @@ from retrieval.vector_store import index_graph_nodes, client, collection_name, e
 app = FastAPI()
 
 # Configure Gemini (Fails gracefully if key is missing)
-api_key = os.environ.get("AQ.Ab8RN6I9aZQJJCY-id1ym68UYZrt0o0BWj-1FyZ6eLtC5dsQSw") # Hardcode here temporarily if env variables keep dropping
+#api_key = "AQ.Ab8RN6I9aZQJJCY-id1ym68UYZrt0o0BWj-1FyZ6eLtC5dsQSw" 
+# # Hardcode here temporarily if env variables keep dropping
+api_key=os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=api_key)
 
 # We use the standard model for text, and configure one specifically for JSON output
-text_model = genai.GenerativeModel('gemini-1.5-flash')
-json_model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"})
+text_model = genai.GenerativeModel('gemini-2.5-flash')
+json_model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
 
 app.add_middleware(
     CORSMiddleware,
