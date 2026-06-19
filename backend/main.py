@@ -12,8 +12,13 @@ from ingestion.parser import parse_document
 from ingestion.graph_builder import build_document_graph
 
 # Retrieval Modules
-from retrieval.vector_store import index_graph_nodes, client, collection_name, encoder
-
+from retrieval.vector_store import (
+    index_graph_nodes,
+    client,
+    collection_name,
+    encoder,
+    search_similar_nodes
+)
 app = FastAPI()
 
 # Configure Gemini (Fails gracefully if key is missing)
@@ -119,7 +124,40 @@ async def ask_document(payload: QueryRequest):
             file_path = f.read().strip()
             
         elements = parse_document(file_path)
-        full_text = "\n".join([el.get("content", "") for el in elements])
+        doc_graph = build_document_graph(elements)
+
+        results = search_similar_nodes(payload.question)
+
+        retrieved_chunks = []
+
+        for point in results.points:
+            retrieved_chunks.append(point.payload)
+
+        sources = []
+
+        for point in results.points:
+
+            sources.append({
+                "page": point.payload.get("page"),
+                "title": point.payload.get("content", "")[:80],
+                "type": point.payload.get("type")
+            })
+
+        print("\n===== SOURCES =====")
+        print(sources)
+        print("===================\n")
+
+        print("\n===== RETRIEVED CHUNKS =====")
+
+        for chunk in retrieved_chunks:
+            print(chunk)
+
+        print("============================\n")
+
+        retrieved_text = "\n\n".join(
+            chunk["content"]
+            for chunk in retrieved_chunks
+        )
         
         prompt = f"""
         You are a Graph-RAG AI. Answer the user's question using the provided document.
@@ -130,13 +168,40 @@ async def ask_document(payload: QueryRequest):
         If 'paragraph', use standard text. If 'bullet points', use a list.
         
         DOCUMENT TEXT:
-        {full_text[:500000]}
+        {retrieved_text}
         
         USER QUESTION: {payload.question}
         """
         
         response = text_model.generate_content(prompt)
-        return {"answer": response.text, "strategy": "Global Context Window"}
+        relationship_view = []
+
+        for node_id, data in doc_graph.nodes(data=True):
+
+            if data.get("type") == "heading":
+
+                connected = []
+
+                for _, target, edge_data in doc_graph.out_edges(node_id, data=True):
+
+                    if edge_data.get("relation") == "BELONGS_TO_SECTION":
+
+                        connected.append(
+                            doc_graph.nodes[target].get("type", "unknown")
+                        )
+
+                if connected:
+                    relationship_view.append({
+                        "heading": data.get("content", ""),
+                        "connected_items": connected
+                    })
+
+        return {
+            "answer": response.text,
+            "strategy": "RAG Retrieval",
+            "relationships": relationship_view,
+            "sources": sources
+        }
         
     except Exception as e:
         print(f"ASK ERROR: {str(e)}")

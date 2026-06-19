@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState,useEffect,useRef } from 'react';
 import UploadForm from './components/UploadForm';
 
 export default function App() {
@@ -6,13 +6,19 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef(null);
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
   };
+  useEffect(() => {
+  messagesEndRef.current?.scrollIntoView({
+    behavior: "smooth",
+  });
+}, [chatHistory, loading]);
 
   const handleTransmit = async () => {
-    if (!query.strip && query.trim() === '') return;
+    if( query.trim() === '') return;
     
     const userMessage = query;
     setChatHistory((prev) => [...prev, { sender: 'user', text: userMessage }]);
@@ -29,8 +35,13 @@ export default function App() {
       const data = await response.json();
       
       setChatHistory((prev) => [
-        ...prev, 
-        { sender: 'system', text: data.answer || 'Error interpreting return stream.' }
+        ...prev,
+        {
+          sender: 'system',
+          text: data.answer || 'Error interpreting return stream.',
+          sources: data.sources || [],
+          relationships: data.relationships || []
+        }
       ]);
     } catch (error) {
       setChatHistory((prev) => [
@@ -134,6 +145,19 @@ export default function App() {
                     {msg.sender === 'user' ? '// User_Query' : '// System_Response'}
                   </span>
                   <p className="whitespace-pre-wrap">{msg.text}</p>
+                  {msg.sources && msg.sources.length > 0 && (
+                  <div className="mt-4 border-t border-zinc-700 pt-3">
+                    <div className="font-bold text-xs mb-2 text-emerald-400">
+                      EVIDENCE SOURCES
+                    </div>
+
+                    {msg.sources.map((source, idx) => (
+                      <div key={idx} className="text-xs opacity-80">
+                        📄 Page {source.page} — {source.title}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 </div>
               ))
             )}
@@ -142,6 +166,7 @@ export default function App() {
                 [ Computing embeddings and traversing database nodes... ]
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Chat Inputs */}
