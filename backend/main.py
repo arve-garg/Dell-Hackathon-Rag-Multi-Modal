@@ -133,6 +133,11 @@ async def ask_document(payload: QueryRequest):
         for point in results.points:
             retrieved_chunks.append(point.payload)
 
+        retrieved_ids = set()
+
+        for point in results.points:
+            retrieved_ids.add(point.payload.get("element_id"))
+        
         sources = []
 
         for point in results.points:
@@ -173,29 +178,47 @@ async def ask_document(payload: QueryRequest):
         USER QUESTION: {payload.question}
         """
         
-        response = text_model.generate_content(prompt)
+        class MockResponse:
+            text = "TEST ANSWER"
+
+        response = MockResponse()
         relationship_view = []
 
         for node_id, data in doc_graph.nodes(data=True):
 
+            if node_id not in retrieved_ids:
+                continue
+
             if data.get("type") == "heading":
 
-                connected = []
+                paragraph_count = 0
+                table_count = 0
+
+                connected_items = []
 
                 for _, target, edge_data in doc_graph.out_edges(node_id, data=True):
 
                     if edge_data.get("relation") == "BELONGS_TO_SECTION":
 
-                        connected.append(
-                            doc_graph.nodes[target].get("type", "unknown")
-                        )
+                        target_node = doc_graph.nodes[target]
 
-                if connected:
+                        if target_node.get("type") == "paragraph":
+                            paragraph_count += 1
+
+                        elif target_node.get("type") == "table":
+                            table_count += 1
+
+                if paragraph_count > 0 or table_count > 0:
+
                     relationship_view.append({
-                        "heading": data.get("content", ""),
-                        "connected_items": connected
+                        "heading": data.get("content"),
+                        "page": data.get("page"),
+                        "paragraphs": paragraph_count,
+                        "tables": table_count
                     })
-
+        print("\n===== RELATIONSHIPS =====")
+        print(relationship_view)
+        print("========================\n")
         return {
             "answer": response.text,
             "strategy": "RAG Retrieval",

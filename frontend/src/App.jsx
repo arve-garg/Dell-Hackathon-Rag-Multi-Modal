@@ -1,30 +1,11 @@
-<<<<<<< HEAD
-import { useState } from 'react';
-=======
 import { useState,useEffect,useRef } from 'react';
 import UploadForm from './components/UploadForm';
->>>>>>> dc859da567c64e28f84fe9440a8767500577c11e
 
 export default function App() {
-  const [file, setFile] = useState(null);
+  const [theme, setTheme] = useState('dark');
+  const [query, setQuery] = useState('');
+  const [chatHistory, setChatHistory] = useState([]);
   const [loading, setLoading] = useState(false);
-<<<<<<< HEAD
-  const [analysisData, setAnalysisData] = useState(null);
-  
-  // Quiz State
-  const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState("");
-  const [showTrace, setShowTrace] = useState(false);
-
-  // Ask Engine State
-  const [query, setQuery] = useState("");
-  const [format, setFormat] = useState("paragraph");
-  const [askResponse, setAskResponse] = useState("");
-
-  // --- API CALLS ---
-  const handleUploadAndAnalyze = async () => {
-    if (!file) return alert("Please select a file first!");
-=======
   const messagesEndRef = useRef(null);
 
   const toggleTheme = () => {
@@ -42,25 +23,14 @@ export default function App() {
     const userMessage = query;
     setChatHistory((prev) => [...prev, { sender: 'user', text: userMessage }]);
     setQuery('');
->>>>>>> dc859da567c64e28f84fe9440a8767500577c11e
     setLoading(true);
 
-    const formData = new FormData();
-    formData.append("file", file);
-
     try {
-      // 1. Upload the File
-      await fetch("http://localhost:8000/upload", {
-        method: "POST",
-        body: formData,
+      const response = await fetch('http://localhost:8000/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: userMessage }),
       });
-<<<<<<< HEAD
-
-      // 2. Fetch the Analysis (Summary + Quiz)
-      const res = await fetch("http://localhost:8000/analyze");
-      const data = await res.json();
-      setAnalysisData(data);
-=======
       
       const data = await response.json();
       
@@ -73,47 +43,46 @@ export default function App() {
           relationships: data.relationships || []
         }
       ]);
->>>>>>> dc859da567c64e28f84fe9440a8767500577c11e
     } catch (error) {
-      console.error("Pipeline Error:", error);
-      alert("Failed to connect to backend. Is FastAPI running?");
-    }
-    setLoading(false);
-  };
-
-  const handleAskEngine = async () => {
-    if (!query) return;
-    setAskResponse("Analyzing document...");
-    
-    try {
-      const res = await fetch("http://localhost:8000/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: query, format_preference: format })
-      });
-      const data = await res.json();
-      setAskResponse(data.answer || "No response generated.");
-    } catch (error) {
-      setAskResponse("Error reaching the Ask endpoint.");
+      setChatHistory((prev) => [
+        ...prev, 
+        { sender: 'system', text: 'Connection terminal fault. Ensure backend is online.' }
+      ]);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 p-8 font-sans">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <div className={`min-h-screen transition-colors duration-500 font-sans flex flex-col ${
+      theme === 'dark' ? 'bg-zinc-950 text-cyan-50' : 'bg-slate-50 text-slate-900'
+    }`}>
+      
+      {/* Navigation / Header */}
+      <header className={`px-8 py-4 flex justify-between items-center border-b backdrop-blur-md sticky top-0 z-50 ${
+        theme === 'dark' ? 'border-cyan-900/50 bg-zinc-950/80' : 'border-slate-300 bg-white/80'
+      }`}>
+        <div className="flex items-center gap-3">
+          <svg className={`w-8 h-8 animate-pulse ${theme === 'dark' ? 'text-cyan-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
+          </svg>
+          <h1 className="text-2xl font-black tracking-widest uppercase">
+            DIG // <span className={theme === 'dark' ? 'text-cyan-400' : 'text-blue-600'}>Core</span>
+          </h1>
+        </div>
         
-        {/* HEADER */}
-        <header className="border-b border-gray-700 pb-4">
-          <h1 className="text-4xl font-bold text-blue-400">Graph-RAG Multi-Modal Engine</h1>
-          <p className="text-gray-400 mt-2">Dell AI Hackathon | Real-time vector analytics</p>
-        </header>
+        <button 
+          onClick={toggleTheme}
+          className={`px-4 py-2 rounded-none border-2 font-bold uppercase text-xs tracking-widest transition-all duration-300 hover:-translate-y-1 ${
+            theme === 'dark' 
+              ? 'border-cyan-500 text-cyan-400 hover:bg-cyan-500 hover:text-zinc-950 hover:shadow-[0_0_15px_rgba(34,211,238,0.5)]' 
+              : 'border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white'
+          }`}
+        >
+          {theme === 'dark' ? 'Engage Light' : 'Engage Dark'}
+        </button>
+      </header>
 
-<<<<<<< HEAD
-        {/* SECTION 1: INGESTION */}
-        <section className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-          <h2 className="text-2xl font-semibold mb-4">1. Document Ingestion</h2>
-          <div className="flex gap-4 items-center">
-=======
       {/* Main Grid Layout */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
         
@@ -177,18 +146,45 @@ export default function App() {
                   </span>
                   <p className="whitespace-pre-wrap">{msg.text}</p>
                   {msg.sources && msg.sources.length > 0 && (
-                  <div className="mt-4 border-t border-zinc-700 pt-3">
-                    <div className="font-bold text-xs mb-2 text-emerald-400">
-                      EVIDENCE SOURCES
-                    </div>
+                    <div className="mt-4 border-t border-zinc-700 pt-3">
+                      <div className="font-bold text-xs mb-2 text-emerald-400">
+                        EVIDENCE SOURCES
+                      </div>
 
-                    {msg.sources.map((source, idx) => (
-                      <div key={idx} className="text-xs opacity-80">
-                        📄 Page {source.page} — {source.title}
+                      {msg.sources.map((source, idx) => (
+                        <div key={idx} className="text-xs opacity-80">
+                          📄 Page {source.page} — {source.title}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {msg.relationships && msg.relationships.length > 0 && (
+                    <div className="mt-4 border-t border-purple-700 pt-3">
+                      <div className="font-bold text-xs mb-2 text-purple-400">
+                        RELATIONSHIP VIEW
+                      </div>
+
+                      {msg.relationships.map((rel, idx) => (
+                        <div key={idx} className="mb-3 text-xs">
+
+                        <div className="font-semibold text-purple-300">
+                          📑 {rel.heading} (Page {rel.page})
+                        </div>
+
+                        <div className="ml-5 opacity-80">
+                          {rel.paragraphs > 0 && (
+                            <div>├── {rel.paragraphs} Supporting Paragraphs</div>
+                          )}
+
+                          {rel.tables > 0 && (
+                            <div>└── {rel.tables} Supporting Tables</div>
+                          )}
+                        </div>
+
                       </div>
                     ))}
-                  </div>
-                )}
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -202,129 +198,33 @@ export default function App() {
 
           {/* Chat Inputs */}
           <div className="mt-4 flex gap-4">
->>>>>>> dc859da567c64e28f84fe9440a8767500577c11e
-            <input 
-              type="file" 
-              onChange={(e) => setFile(e.target.files[0])} 
-              className="file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
-            />
-            <button 
-              onClick={handleUploadAndAnalyze}
-              disabled={loading}
-              className="bg-green-600 hover:bg-green-500 px-6 py-2 rounded font-bold transition-all disabled:opacity-50"
-            >
-              {loading ? "Processing Pipeline..." : "Upload & Analyze"}
-            </button>
-          </div>
-        </section>
-
-        {analysisData && (
-          <>
-            {/* SECTION 2: EXECUTIVE SUMMARY */}
-            <section className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <h2 className="text-2xl font-semibold mb-4 text-purple-400">Executive Summary</h2>
-              <p className="leading-relaxed">{analysisData.summary}</p>
-            </section>
-
-            {/* SECTION 3: INTERACTIVE QUIZ & TRACEABILITY */}
-            <section className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <h2 className="text-2xl font-semibold mb-4 text-orange-400">Knowledge Verification</h2>
-              
-              <div className="mb-4">
-                <label className="block text-sm text-gray-400 mb-2">Select a Question generated from the Graph:</label>
-                <select 
-                  className="w-full bg-gray-900 border border-gray-600 rounded p-3 text-white"
-                  onChange={(e) => {
-                    setActiveQuestionIndex(e.target.value);
-                    setShowTrace(false);
-                    setSelectedAnswer("");
-                  }}
-                >
-                  {analysisData.quiz.map((q, idx) => (
-                    <option key={idx} value={idx}>{q.question}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-3 mt-6">
-                {analysisData.quiz[activeQuestionIndex].options.map((opt, i) => (
-                  <button 
-                    key={i}
-                    onClick={() => setSelectedAnswer(opt)}
-                    className={`block w-full text-left p-3 rounded border transition-all ${selectedAnswer === opt ? 'bg-blue-600 border-blue-400' : 'bg-gray-900 border-gray-700 hover:border-gray-500'}`}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-
-              {selectedAnswer && (
-                <div className="mt-6 pt-4 border-t border-gray-700 flex justify-between items-center">
-                  <p className="font-bold text-lg">
-                    {selectedAnswer === analysisData.quiz[activeQuestionIndex].answer 
-                      ? "✅ Correct!" 
-                      : "❌ Incorrect"}
-                  </p>
-                  <button 
-                    onClick={() => setShowTrace(!showTrace)}
-                    className="text-sm bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded"
-                  >
-                    {showTrace ? "Hide Explainability Trace" : "Why this answer?"}
-                  </button>
-                </div>
-              )}
-
-              {/* THE TRACE PIPELINE */}
-              {showTrace && (
-                <div className="mt-4 p-4 bg-black rounded border border-orange-900 font-mono text-sm text-orange-300">
-                  <p className="font-bold mb-2">⚡ Pipeline Execution Trace:</p>
-                  <ul className="list-disc pl-5 space-y-1">
-                    {analysisData.quiz[activeQuestionIndex].trace.map((step, idx) => (
-                      <li key={idx}>{step}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </section>
-          </>
-        )}
-
-        {/* SECTION 4: ADAPTIVE ASK ENGINE */}
-        <section className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-          <h2 className="text-2xl font-semibold mb-4 text-emerald-400">Multi-Modal Ask Engine</h2>
-          <div className="flex gap-4 mb-4">
             <input 
               type="text" 
-              placeholder="Ask anything about the document..." 
-              className="flex-1 bg-gray-900 border border-gray-600 rounded p-3 text-white"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleTransmit()}
+              placeholder="Query the document network..." 
+              className={`flex-1 p-4 font-mono text-sm focus:outline-none focus:ring-1 rounded-none border ${
+                theme === 'dark' 
+                  ? 'bg-zinc-950 border-zinc-800 text-cyan-400 focus:ring-cyan-500 placeholder-zinc-700' 
+                  : 'bg-white border-slate-300 text-slate-900 focus:ring-blue-500 placeholder-slate-400'
+              }`}
             />
-            <select 
-              className="bg-gray-900 border border-gray-600 rounded p-3 text-white"
-              value={format}
-              onChange={(e) => setFormat(e.target.value)}
-            >
-              <option value="paragraph">Paragraph</option>
-              <option value="bullets">Bullet Points</option>
-              <option value="visual">Visual / Diagram</option>
-            </select>
             <button 
-              onClick={handleAskEngine}
-              className="bg-emerald-600 hover:bg-emerald-500 px-6 py-2 rounded font-bold transition-all"
+              onClick={handleTransmit}
+              disabled={loading}
+              className={`px-8 font-bold uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 ${
+                theme === 'dark' 
+                  ? 'bg-cyan-500 text-zinc-950 hover:bg-cyan-400 hover:shadow-[0_0_20px_rgba(34,211,238,0.6)]' 
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
             >
-              Ask
+              Transmit
             </button>
           </div>
-          
-          {askResponse && (
-            <div className="p-4 bg-gray-900 rounded border border-gray-600 whitespace-pre-wrap">
-              {askResponse}
-            </div>
-          )}
-        </section>
+        </div>
 
-      </div>
+      </main>
     </div>
   );
 }
