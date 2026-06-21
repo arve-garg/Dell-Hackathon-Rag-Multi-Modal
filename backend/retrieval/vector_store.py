@@ -48,7 +48,8 @@ def index_graph_nodes(doc_graph):
                     "element_id": node_id,
                     "type": data.get("type", "text"),
                     "page": data.get("page", 0),
-                    "content": text_content
+                    "content": text_content,
+                    "image_path": data.get("image_path", "")
                 }
             )
         )

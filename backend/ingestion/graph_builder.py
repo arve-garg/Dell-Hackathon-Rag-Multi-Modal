@@ -14,6 +14,14 @@ def build_document_graph(elements):
     current_heading = None
     # Step 1: Add all elements as nodes
     for i, el in enumerate(elements):
+        if el.get("type") == "image":
+            print(
+                "IMAGE FOUND:",
+                el["element_id"],
+                "PAGE:",
+                el["page"]
+            )
+
         node_id = el["element_id"]
         
         # Add the node with its metadata
@@ -31,6 +39,10 @@ def build_document_graph(elements):
 
         # Link content to heading
         elif current_heading:
+            if element_type == "image":
+                print(
+                    f"IMAGE LINKED TO HEADING: {current_heading}"
+                )
             G.add_edge(
                 current_heading,
                 node_id,
@@ -48,4 +60,12 @@ def build_document_graph(elements):
         if i > 0 and elements[i-1].get("page") == el.get("page"):
              G.add_edge(prev_node_id, node_id, relation="ON_SAME_PAGE")
 
+
+    image_count = 0
+
+    for _, data in G.nodes(data=True):
+        if data.get("type") == "image":
+            image_count += 1
+
+    print(f"IMAGE NODES IN GRAPH: {image_count}")
     return G

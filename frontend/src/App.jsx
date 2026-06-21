@@ -40,7 +40,9 @@ export default function App() {
           sender: 'system',
           text: data.answer || 'Error interpreting return stream.',
           sources: data.sources || [],
-          relationships: data.relationships || []
+          relationships: data.relationships || [],
+          confidence: data.confidence || 0,
+          stats: data.stats
         }
       ]);
     } catch (error) {
@@ -145,49 +147,174 @@ export default function App() {
                     {msg.sender === 'user' ? '// User_Query' : '// System_Response'}
                   </span>
                   <p className="whitespace-pre-wrap">{msg.text}</p>
+                  {msg.confidence && (
+                    <div className="mb-3 text-green-400 font-semibold">
+                      🎯 Retrieval Confidence: {msg.confidence}%
+                    </div>
+                  )}
+                  {msg.stats && (
+                    <div className="mt-3 border-t border-zinc-700 pt-3">
+                      <div className="font-bold text-xs mb-2 text-cyan-400 uppercase tracking-wider font-bold">
+                        📊 RETRIEVAL SUMMARY
+                      </div>
+
+                      <div className="text-xs opacity-80">
+                        ✓ Heading Nodes: {msg.stats.headings}
+                      </div>
+
+                      <div className="text-xs opacity-80">
+                        ✓ Paragraph Nodes: {msg.stats.paragraphs}
+                      </div>
+
+                      <div className="text-xs opacity-80">
+                        ✓ Image Nodes: {msg.stats.images}
+                      </div>
+
+                      <div className="text-xs opacity-80">
+                        ✓ Table Nodes: {msg.stats.tables}
+                      </div>
+
+                      <div className="text-xs opacity-80">
+                        ✓ Sources Consulted: {msg.stats.sources}
+                      </div>
+                    </div>
+                  )}
+
+
+
                   {msg.sources && msg.sources.length > 0 && (
                     <div className="mt-4 border-t border-zinc-700 pt-3">
-                      <div className="font-bold text-xs mb-2 text-emerald-400">
-                        EVIDENCE SOURCES
+                      <div className="font-bold text-xs mb-2 text-emerald-400 uppercase tracking-wider font-bold">
+                        ▶️EVIDENCE SOURCES
                       </div>
 
-                      {msg.sources.map((source, idx) => (
-                        <div key={idx} className="text-xs opacity-80">
-                          📄 Page {source.page} — {source.title}
-                        </div>
-                      ))}
+                      {msg.sources.map((source, idx) => {
+
+                        if (
+                          source.title?.includes("www.") ||
+                          source.title?.includes("http")
+                        ) {
+                          return null;
+                        }
+
+                        return (
+                          <div key={idx} className="text-xs opacity-80 flex justify-between">
+
+                            <div>
+                              📄 Page {source.page} — {source.title}
+                            </div>
+
+                            <span className="text-emerald-400 font-semibold">
+                              {source.confidence}%
+                            </span>
+
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
+
                   {msg.relationships && msg.relationships.length > 0 && (
-                    <div className="mt-4 border-t border-purple-700 pt-3">
-                      <div className="font-bold text-xs mb-2 text-purple-400">
-                        RELATIONSHIP VIEW
+                    <>
+                      <div className="font-bold text-xs mb-2 mt-4 text-purple-400 uppercase tracking-wider font-bold">
+                        🌐 KNOWLEDGE GRAPH CONNECTIONS
                       </div>
 
-                      {msg.relationships.map((rel, idx) => (
-                        <div key={idx} className="mb-3 text-xs">
+                      {msg.relationships.map((rel, idx) => {
+                        const paragraphCount =
+                          rel.components?.filter(
+                            c => c.type === "paragraph"
+                          ).length || 0;
 
-                        <div className="font-semibold text-purple-300">
-                          📑 {rel.heading} (Page {rel.page})
-                        </div>
+                        const imageCount =
+                          rel.components?.filter(
+                            c => c.type === "image"
+                          ).length || 0;
 
-                        <div className="ml-5 opacity-80">
-                          {rel.paragraphs > 0 && (
-                            <div>├── {rel.paragraphs} Supporting Paragraphs</div>
-                          )}
+                        const tableCount =
+                          rel.components?.filter(
+                            c => c.type === "table"
+                          ).length || 0;
 
-                          {rel.tables > 0 && (
-                            <div>└── {rel.tables} Supporting Tables</div>
-                          )}
-                        </div>
+                        return (
+                          <div key={idx} className="mb-4 text-xs">
 
+                            <div className="font-semibold text-blue-300 mb-2">
+                              📑 {rel.heading} (Page {rel.page})
+                            </div>
+
+                            <div className="ml-2 mb-2 text-[11px] text-zinc-400">
+                              ✓ {paragraphCount} Paragraph Nodes <br/>
+                              ✓ {imageCount} Image Nodes <br/>
+                              ✓ {tableCount} Table Nodes
+                            </div>
+
+                            <div className="ml-4 space-y-1">
+                              {rel.components?.slice(0, 3).map((component, compIdx) => (
+                                <div key={compIdx} className="opacity-80">
+
+                                  {component.type === "table" && (
+                                    <div>
+                                      <div className="font-medium">
+                                        📊 Table (Page {component.page})
+                                      </div>
+
+                                      <div className="ml-4 text-[11px] opacity-70">
+                                        {component.content}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {component.type === "paragraph" && (
+                                    <div className="ml-2 text-[11px] opacity-70">
+                                      • {component.content}
+                                    </div>
+                                  )}
+
+                                  {component.type === "image" && (
+                                    <div className="ml-2 text-[11px] opacity-70">
+                                      🖼 Image (Page {component.page})
+                                    </div>
+                                  )}
+
+                                </div>
+                              ))}
+                            </div>
+
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+
+                  {msg.relationships?.some(rel =>
+                    rel.components?.some(c => c.type === "image")
+                  ) && (
+                    <div className="mt-4 border-t border-zinc-700 pt-3">
+                      <div className="font-bold text-xs mb-2 text-pink-400 uppercase tracking-wider font-bold">
+                        🖼 VISUAL EVIDENCE
                       </div>
-                    ))}
+
+                      {msg.relationships.map((rel, relIdx) =>
+                        rel.components
+                          ?.filter(c => c.type === "image")
+                          .map((img, imgIdx) => (
+                            <div
+                              key={`${relIdx}-${imgIdx}`}
+                              className="text-xs opacity-80 mb-2"
+                            >
+                              Page {img.page} — Linked to "{rel.heading}"
+                            </div>
+                          ))
+                      )}
                     </div>
                   )}
-                </div>
-              ))
-            )}
+
+                  </div>
+                  ))
+                  )}
+
+            
             {loading && (
               <div className="p-3 font-mono text-sm text-yellow-500 animate-pulse">
                 [ Computing embeddings and traversing database nodes... ]

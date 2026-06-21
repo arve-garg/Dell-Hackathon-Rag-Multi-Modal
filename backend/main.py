@@ -58,6 +58,12 @@ async def upload_document(file: UploadFile = File(...)):
         
     try:
         elements = parse_document(file_path)
+
+        print(f"TOTAL ELEMENTS: {len(elements)}")
+
+        for el in elements:
+            if el["type"] == "image":
+                print(el)
         doc_graph = build_document_graph(elements)
         indexed_count = index_graph_nodes(doc_graph)
         
@@ -127,26 +133,75 @@ async def ask_document(payload: QueryRequest):
         doc_graph = build_document_graph(elements)
 
         results = search_similar_nodes(payload.question)
+        print("\n===== TOP RETRIEVED CHUNKS =====")
+
+        for point in results.points:
+            print(
+                point.payload.get("type"),
+                "| Page:",
+                point.payload.get("page"),
+                "| Score:",
+                round(point.score, 3)
+            )
+            print(point.payload.get("content", "")[:120])
+            print("----------------")
+
+        print("===============================\n")
 
         retrieved_chunks = []
 
         for point in results.points:
             retrieved_chunks.append(point.payload)
-
-        retrieved_ids = set()
-
-        for point in results.points:
-            retrieved_ids.add(point.payload.get("element_id"))
         
-        sources = []
+        expanded_context = []
+
+        retrieved_ids = []
+        score_lookup = {}
 
         for point in results.points:
+
+            retrieved_ids.append(
+                point.payload.get("element_id")
+            )
+
+            score_lookup[
+                point.payload.get("element_id")
+            ] = point.score
+
+        for point in results.points:
+            retrieved_ids.append(point.payload.get("element_id"))
+        
+        expanded_context.append(
+            point.payload.get("content", "")
+        )
+        sources = []
+        seen_sources = set()
+
+        for point in results.points:
+            page = point.payload.get("page")
+            title = point.payload.get("content", "")[:80]
+
+            source_key = (page, title)
+
+            if source_key in seen_sources:
+                continue
+
+            seen_sources.add(source_key)
+
 
             sources.append({
                 "page": point.payload.get("page"),
                 "title": point.payload.get("content", "")[:80],
-                "type": point.payload.get("type")
+                "type": point.payload.get("type"),
+                "confidence": round(point.score * 100, 1),
+                "reason": "Direct match to user query"
+                            if point.score > 0.85
+                            else "Supporting contextual evidence"
+                            
             })
+            print(point.payload.get("content", "")[:50])
+            print("SCORE:", point.score)
+            print("-----------")
 
         print("\n===== SOURCES =====")
         print(sources)
@@ -159,29 +214,66 @@ async def ask_document(payload: QueryRequest):
 
         print("============================\n")
 
-        retrieved_text = "\n\n".join(
-            chunk["content"]
-            for chunk in retrieved_chunks
-        )
+        for node_id in retrieved_ids:
+
+            if node_id not in doc_graph:
+                continue
+
+            for _, target, edge_data in doc_graph.out_edges(node_id, data=True):
+
+                if edge_data.get("relation") == "BELONGS_TO_SECTION":
+
+                    target_node = doc_graph.nodes[target]
+
+                    expanded_context.append(
+                        target_node.get("content", "")
+                    )
+        print("\n===== EXPANDED CONTEXT COUNT =====")
+        print(len(expanded_context))
+        print("============================\n")
+        retrieved_text = "\n\n".join(expanded_context)
         
+        print("\n===== EXPANDED CONTEXT =====")
+        print(retrieved_text[:2000])
+        print("============================\n")
+
         prompt = f"""
-        You are a Graph-RAG AI. Answer the user's question using the provided document.
-        
-        CRITICAL FORMATTING INSTRUCTION: 
-        The user wants the answer presented as: {payload.format_preference}.
-        If they requested 'graphical' or 'visual', use ASCII art, markdown tables, or structured diagrams. 
-        If 'paragraph', use standard text. If 'bullet points', use a list.
-        
-        DOCUMENT TEXT:
-        {retrieved_text}
-        
-        USER QUESTION: {payload.question}
+        You are an advanced Graph-RAG system.
+
+        The document has already been expanded using graph relationships.
+
+        Each heading contains supporting paragraphs, tables, and images.
+
+        Use the graph context below to answer the user's question.
+        IMPORTANT:
+
+       The PRIMARY SECTION is the most relevant evidence.
+
+        Answer primarily using information from the PRIMARY SECTION.
+
+        Use SUPPORTING SECTIONS only when necessary for additional context.
+        If the PRIMARY SECTION has a relevance score at least 15% higher than a SUPPORTING SECTION,
+        prioritize the PRIMARY SECTION and only briefly mention the supporting section if it directly contributes to answering the question.
+        Do not merge unrelated sections.
+        GRAPH CONTEXT:
+        {expanded_context}
+
+        QUESTION:
+        {payload.question}
+
+        Instructions:
+        1. Synthesize information across related components.
+        2. Mention relevant sections when appropriate.
+        3. Do not answer from a single paragraph.
+        4. Combine evidence across headings if necessary.
+        5. Cite page numbers when useful.
         """
-        
         class MockResponse:
             text = "TEST ANSWER"
 
         response = MockResponse()
+
+        #response = text_model.generate_content(prompt)
         relationship_view = []
 
         for node_id, data in doc_graph.nodes(data=True):
@@ -191,9 +283,6 @@ async def ask_document(payload: QueryRequest):
 
             if data.get("type") == "heading":
 
-                paragraph_count = 0
-                table_count = 0
-
                 connected_items = []
 
                 for _, target, edge_data in doc_graph.out_edges(node_id, data=True):
@@ -202,28 +291,100 @@ async def ask_document(payload: QueryRequest):
 
                         target_node = doc_graph.nodes[target]
 
-                        if target_node.get("type") == "paragraph":
-                            paragraph_count += 1
+                        connected_items.append({
+                            "type": target_node.get("type"),
+                            "page": target_node.get("page"),
+                            "content": target_node.get("content", "")[:100],
+                            "full_content": target_node.get("content", "")
+                        })
 
-                        elif target_node.get("type") == "table":
-                            table_count += 1
-
-                if paragraph_count > 0 or table_count > 0:
+                if connected_items:
 
                     relationship_view.append({
                         "heading": data.get("content"),
                         "page": data.get("page"),
-                        "paragraphs": paragraph_count,
-                        "tables": table_count
+                        "score": score_lookup.get(node_id, 0),
+                        "components": connected_items
                     })
+                    relationship_view.sort(
+                        key=lambda x: x["score"],
+                        reverse=True
+                    )
         print("\n===== RELATIONSHIPS =====")
         print(relationship_view)
         print("========================\n")
+
+        overall_confidence = round(
+            sum(point.score for point in results.points)
+            / len(results.points)
+            * 100,
+            1
+        )
+
+        expanded_context = ""
+
+        for i, rel in enumerate(relationship_view):
+
+            if i == 0:
+                expanded_context += "\n\n===== PRIMARY SECTION =====\n"
+            else:
+                expanded_context += "\n\n===== SUPPORTING SECTION =====\n"
+
+            expanded_context += (
+                f"HEADING: {rel['heading']}\n"
+                f"PAGE: {rel['page']}\n"
+                f"RELEVANCE: {rel['score']:.2f}\n"
+                f"RELATED COMPONENTS:\n"
+            )
+
+            for comp in rel["components"]:
+
+                expanded_context += (
+                    f"- {comp['type'].upper()} "
+                    f"(Page {comp['page']}): "
+                    f"{comp['full_content']}\n"
+                )
+                print("\n===== GRAPH CONTEXT LENGTH =====")
+                print(len(expanded_context))
+                print("================================\n")
+                print("\n===== GRAPH CONTEXT =====")
+                print(expanded_context[:5000])
+                print("=========================\n")
+        print("SOURCES COUNT:",len(sources))
+
+        total_paragraphs = 0
+        total_images = 0
+        total_tables = 0
+
+        for rel in relationship_view:
+
+            total_paragraphs += len([
+                c for c in rel.get("components", [])
+                if c.get("type") == "paragraph"
+            ])
+
+            total_images += len([
+                c for c in rel.get("components", [])
+                if c.get("type") == "image"
+            ])
+
+            total_tables += len([
+                c for c in rel.get("components", [])
+                if c.get("type") == "table"
+            ])
         return {
             "answer": response.text,
             "strategy": "RAG Retrieval",
             "relationships": relationship_view,
-            "sources": sources
+            "sources": sources,
+            "confidence": overall_confidence,
+            "stats": {
+                "headings": len(relationship_view),
+                "paragraphs": total_paragraphs,
+                "images": total_images,
+                "tables": total_tables,
+                "sources": len(sources)
+            }
         }
         
     except Exception as e:
