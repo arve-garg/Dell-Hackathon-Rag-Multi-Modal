@@ -268,12 +268,12 @@ async def ask_document(payload: QueryRequest):
         4. Combine evidence across headings if necessary.
         5. Cite page numbers when useful.
         """
-        class MockResponse:
-            text = "TEST ANSWER"
+        # class MockResponse:
+        #     text = "TEST ANSWER"
 
-        response = MockResponse()
+        # response = MockResponse()
 
-        #response = text_model.generate_content(prompt)
+        response = text_model.generate_content(prompt)
         relationship_view = []
 
         for node_id, data in doc_graph.nodes(data=True):
